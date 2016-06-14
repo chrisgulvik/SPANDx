@@ -28,29 +28,25 @@
 source "$SCRIPTPATH"/SPANDx.config
 source "$SCRIPTPATH"/GATK.config
 
-if [ ! $PBS_O_WORKDIR ]
-    then
-        PBS_O_WORKDIR="$seq_path"
+if [ ! $PBS_O_WORKDIR ]; then
+  PBS_O_WORKDIR="$seq_path"
 fi
-
 cd $PBS_O_WORKDIR
 
 log_eval()
 {
-  cd $1
-  echo -e "\nIn $1\n"
-  echo "Running: $2"
-  eval "$2"
-  status=$?
-
-  if [ ! $status == 0 ]; then
-    echo "Previous command returned error: $status"
-    exit 1
-  fi
+cd $1
+echo -e "\nIn $1\n"
+echo "Running: $2"
+eval "$2"
+status=$?
+if [ ! $status == 0 ]; then
+  echo "Previous command returned error: $status"
+  exit 1
+fi
 }
 
 ###file variable list
-
 REF_FILE=$seq_path/${ref}
 REF_FASTA=$seq_path/${ref}.fasta
 READ1_FILE=$seq_path/${seq}_1_sequence.fastq.gz
@@ -92,12 +88,10 @@ GATK_INDELS_HEAD2=$seq_path/${seq}/unique/${seq}.indels.head2.vcf
 GATK_INDELS_FAIL=$seq_path/${seq}/unique/${seq}.indels.FAIL.vcf
 
 #check directory structure from previous script
-
 ## create directory structure for each sequence file
 if [ ! -d "$seq_path/${seq}" ]; then
 	mkdir -p $seq_path/${seq}
 fi
-
 if [ ! -d "$seq_path/${seq}/unique" ]; then
     mkdir -p $seq_path/${seq}/unique
 fi  
@@ -111,38 +105,37 @@ fi
 ##                                                                     ##
 ##      -outfiles(s) aligned sequence file $SAM and $BAM               ##
 #########################################################################
-
 if [ "$tech" == Illumina -o "$tech" == Illumina_old ]; then
     if [ "$tech" == Illumina -a "$pairing" == PE ]; then
         if [ ! -s "$SAI1" -a ! -s "$GATK_REALIGNED_BAM" ]; then
-            log_eval $PBS_O_WORKDIR "$BWA aln $REF_FILE $READ1_FILE -t 1 -f $SAI1 && $BWA aln $REF_FILE $READ2_FILE -t 1 -f $SAI2"
+            log_eval $PBS_O_WORKDIR "$BWA aln $REF_FILE $READ1_FILE -t $NSLOTS -f $SAI1 && $BWA aln $REF_FILE $READ2_FILE -t $NSLOTS -f $SAI2"
         fi
 	fi
 	if [ "$tech" == Illumina -a "$pairing" == SE ]; then
         if [ ! -s "$SAI1" -a ! -s "$GATK_REALIGNED_BAM" ]; then
-            log_eval $PBS_O_WORKDIR "$BWA aln $REF_FILE $READ1_FILE -t 1 -f $SAI1"
+            log_eval $PBS_O_WORKDIR "$BWA aln $REF_FILE $READ1_FILE -t $NSLOTS -f $SAI1"
 	    fi
 	fi
 	if [ "$tech" == Illumina_old -a "$pairing" == PE ]; then
         if [ ! -s "$SAI1" -a ! -s "$GATK_REALIGNED_BAM" ]; then
-            log_eval $PBS_O_WORKDIR "$BWA aln -I $REF_FILE $READ1_FILE -t 1 -f $SAI1 && $BWA aln -I $REF_FILE $READ2_FILE -t 1 -f $SAI2"
+            log_eval $PBS_O_WORKDIR "$BWA aln -I $REF_FILE $READ1_FILE -t $NSLOTS -f $SAI1 && $BWA aln -I $REF_FILE $READ2_FILE -t $NSLOTS -f $SAI2"
         fi
 	fi
 	if [ "$tech" == Illumina_old -a "$pairing" == SE ]; then
         if [ ! -s "$SAI1" -a ! -s "$GATK_REALIGNED_BAM" ]; then
-            log_eval $PBS_O_WORKDIR "$BWA aln -I $REF_FILE $READ1_FILE -t 1 -f $SAI1"
+            log_eval $PBS_O_WORKDIR "$BWA aln -I $REF_FILE $READ1_FILE -t $NSLOTS -f $SAI1"
 	    fi
 	fi
     if [ "$pairing" == PE ]; then
 	    if [ ! -s "$BAM_UNIQUE_FILE.bam" -a ! -s "$GATK_REALIGNED_BAM" ]; then
             log_eval $PBS_O_WORKDIR "$BWA sampe -r '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' $REF_FILE $SAI1 $SAI2 $READ1_FILE $READ2_FILE > $SAM"
-            log_eval $PBS_O_WORKDIR "$SAMTOOLS view -h -b -S -q 1 $SAM | $SAMTOOLS sort - $BAM_UNIQUE_FILE"
+            log_eval $PBS_O_WORKDIR "$SAMTOOLS view -@ $NSLOTS -h -b -S -q 1 $SAM | $SAMTOOLS sort -@ $NSLOTS - $BAM_UNIQUE_FILE"
         fi
 	fi
 	if [ "$pairing" == SE ]; then 
 	    if [ ! -s "$BAM_UNIQUE_FILE.bam" -a ! -s "$GATK_REALIGNED_BAM" ]; then
             log_eval $PBS_O_WORKDIR "$BWA samse -r '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' $REF_FILE $SAI1 $READ1_FILE > $SAM"
-            log_eval $PBS_O_WORKDIR "$SAMTOOLS view -h -b -S -q 1 $SAM | $SAMTOOLS sort - $BAM_UNIQUE_FILE"
+            log_eval $PBS_O_WORKDIR "$SAMTOOLS view -@ $NSLOTS -h -b -S -q 1 $SAM | $SAMTOOLS sort -@ $NSLOTS - $BAM_UNIQUE_FILE"
         fi
 	fi	
     if [ ! -s "$BAM_UNIQUE_INDEX_FILE" -a ! -s "$GATK_REALIGNED_BAM" ]; then
@@ -154,11 +147,11 @@ fi
 ## PGM and 454 single end
 
 if [ "$tech" == PGM -o "$tech" == 454 -a "$pairing" == SE ]; then
-    if [ ! -s "$SAM" -a ! -s "$GATK_REALIGNED_BAM" ]; then
-        log_eval $PBS_O_WORKDIR "$BWA bwasw -t 1 $REF_FILE $READ1_FILE > $SAM"
+  if [ ! -s "$SAM" -a ! -s "$GATK_REALIGNED_BAM" ]; then
+        log_eval $PBS_O_WORKDIR "$BWA bwasw -t $NSLOTS $REF_FILE $READ1_FILE > $SAM"
 	fi
 	if [ ! -s "$BAM" -a ! -s "$GATK_REALIGNED_BAM" ]; then
-	    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -h -b -S -q 1 $SAM | $SAMTOOLS sort -o ${BAM}.bam"
+	    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -@ $NSLOTS -h -b -S -q 1 $SAM | $SAMTOOLS sort -@ $NSLOTS -o ${BAM}.bam"
 	fi
 	if [ ! -s "$BAM_UNIQUE_FILE" -a ! -s "$GATK_REALIGNED_BAM" ]; then
         log_eval $PBS_O_WORKDIR "$JAVA $SET_VAR $ADDORREPLACEREADGROUPS SORT_ORDER=coordinate INPUT=$BAM.bam OUTPUT=$BAM_UNIQUE_FILE.bam RGID=$org RGLB=1 RGPU=1 RGPL=$tech RGSM=$seq VALIDATION_STRINGENCY=SILENT"
@@ -174,10 +167,10 @@ fi
 	
 ### generated unmappped .bam file that contains the unaligned reads from the alignment using samtools
 if [ ! -s "$UNMAPPED.bam" -a -s "$SAM" ]; then
-    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -h -b -S -f 4 -F 264 $SAM > $TMP_BAM1"
-    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -h -b -S -f 8 -F 260 $SAM > $TMP_BAM2"
-    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -h -b -S -f 12 -F 256 $SAM > $TMP_BAM3"
-    log_eval $PBS_O_WORKDIR "$SAMTOOLS merge -u - $TMP_BAM1 $TMP_BAM2 $TMP_BAM3 | $SAMTOOLS sort -n - $UNMAPPED"
+    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -@ $NSLOTS -h -b -S -f 4 -F 264 $SAM > $TMP_BAM1"
+    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -@ $NSLOTS -h -b -S -f 8 -F 260 $SAM > $TMP_BAM2"
+    log_eval $PBS_O_WORKDIR "$SAMTOOLS view -@ $NSLOTS -h -b -S -f 12 -F 256 $SAM > $TMP_BAM3"
+    log_eval $PBS_O_WORKDIR "$SAMTOOLS merge -u - $TMP_BAM1 $TMP_BAM2 $TMP_BAM3 | $SAMTOOLS sort -@ $NSLOTS -n - $UNMAPPED"
 fi
 ### cleanup ###
 if [ -s "$SAM" -a -s "$UNMAPPED.bam" ]; then
@@ -201,8 +194,8 @@ if [ "$REMOVE_DUPS" == 0 ]; then
       log_eval $PBS_O_WORKDIR "$SAMTOOLS index $BAM_DUPLICATESREM_FILE"
   fi
 fi
-## Realignment around poorly mapped regions ###
 
+## Realignment around poorly mapped regions ###
 if [ ! -s "$GATK_TARGET_FILE" -a ! -s "$GATK_REALIGNED_BAM" ]; then
     log_eval $PBS_O_WORKDIR "$JAVA $SET_VAR $GATK -T RealignerTargetCreator -R $REF_FASTA -o $GATK_TARGET_FILE -I $BAM_DUPLICATESREM_FILE"
 fi
@@ -249,11 +242,9 @@ else
 fi
 
 AVG_DEPTH=`awk /^Total/'{printf $3}' $GATK_DEPTH_FILE` 
-
 echo -e "The Average coverage of your genome alignment calculated with GATK is $AVG_DEPTH\n"
 
 # Process the SNPs
-
 if [ ! -s "$GATK_FILTER_SNPS_FILE" -a ! -s "$seq_path/Outputs/SNPs_indels_PASS/${seq}.snps.PASS.vcf" ]; then
         log_eval $PBS_O_WORKDIR "$JAVA $SET_VAR $GATK -T VariantFiltration -R $REF_FASTA -o $GATK_FILTER_SNPS_FILE -V $GATK_RAW_SNPS_FILE --clusterSize $CLUSTER_SNP --clusterWindowSize $CLUSTER_WINDOW_SNP --filterExpression \"MLEAF < $MLEAF_SNP\" --filterName \"AFFilter\" --filterExpression \"QD < $QD_SNP\" --filterName \"QDFilter\" --filterExpression \"MQ < $MQ_SNP\" --filterName \"MQFilter\" --filterExpression \"FS > $FS_SNP\" --filterName \"FSFilter\" --filterExpression \"HaplotypeScore > $HAPLO_SNP\" --filterName \"HaplotypeScoreFilter\" --filterExpression \"QUAL < $QUAL_SNP || DP < ($AVG_DEPTH/$LOW_DEPTH) || DP > ($AVG_DEPTH*$HIGH_DEPTH)\" --filterName \"StandardFilters\" --filterExpression \"MQ0 >= 4 && '((MQ0 / (1.0 * DP))>0.1)'\" --filterName \"HARD_TO_VALIDATE\""
 fi 
@@ -265,7 +256,6 @@ fi
 
 
 # Reapply filters to the raw SNPs file to generate a list of failed SNP calls
-
 if [ ! -s "$GATK_SNP_AMB" -a ! -s "$seq_path/Outputs/SNPs_indels_FAIL/${seq}.snps.FAIL.vcf" ]; then
         log_eval $PBS_O_WORKDIR "$JAVA $SET_VAR $GATK -T VariantFiltration -R $REF_FASTA -o $GATK_SNP_AMB -V $GATK_RAW_SNPS_FILE --clusterSize $CLUSTER_SNP --clusterWindowSize $CLUSTER_WINDOW_SNP --filterExpression \"MLEAF < $MLEAF_SNP\" --filterName \"FAIL\" --filterExpression \"QD < $QD_SNP\" --filterName \"FAIL1\" --filterExpression \"MQ < $MQ_SNP\" --filterName \"FAIL2\" --filterExpression \"FS > $FS_SNP\" --filterName \"FAIL3\" --filterExpression \"HaplotypeScore > $HAPLO_SNP\" --filterName \"FAIL4\" --filterExpression \"QUAL < $QUAL_SNP || DP < ($AVG_DEPTH/$LOW_DEPTH) || DP > ($AVG_DEPTH*$HIGH_DEPTH)\" --filterName \"FAIL5\" --filterExpression \"MQ0 >= 4 && '((MQ0 / (1.0 * DP)) > 0.1)'\" --filterName \"FAIL6\""
 fi
@@ -276,7 +266,6 @@ if [ ! -s "$GATK_SNP_FAIL" -a ! -s "$seq_path/Outputs/SNPs_indels_FAIL/${seq}.sn
 fi
 
 # process the indels
-
 if [ ! -s "$GATK_FILTER_INDELS_FILE" -a ! -s "$seq_path/Outputs/SNPs_indels_FAIL/${seq}.indels.PASS.vcf" ]; then
         log_eval $PBS_O_WORKDIR "$JAVA $SET_VAR $GATK -T VariantFiltration -R $REF_FASTA -o $GATK_FILTER_INDELS_FILE -V $GATK_RAW_INDELS_FILE --filterExpression \"MLEAF < $MLEAF_INDEL\" --filterName \"AFFilter\" --filterExpression \"MQ < $MQ_INDEL\" --filterName \"MQFilter\" --filterExpression \"QD < $QD_INDEL\" --filterName \"QDFilter\" --filterExpression \"FS > $FS_INDEL\" --filterName \"FSFilter\" --filterExpression \"MQ0 >= 4 && '((MQ0 / (1.0 * DP)) > 0.1)'\" --filterName \"HARD_TO_VALIDATE\" --filterExpression \"QUAL < $QUAL_INDEL || DP < ($AVG_DEPTH/$LOW_DEPTH_INDEL) || DP > ($AVG_DEPTH*$HIGH_DEPTH_INDEL)\" --filterName \"QualFilter\""
 fi    
@@ -347,6 +336,5 @@ fi
 [ -f $PBS_O_WORKDIR/${seq}/unique/${seq}.indel.head.vcf ] && rm $PBS_O_WORKDIR/${seq}/unique/${seq}.indel.head*
 [ -f $PBS_O_WORKDIR/${seq}/unique/${seq}.indels.head2.vcf ] && rm $PBS_O_WORKDIR/${seq}/unique/${seq}.indels.head*
 [ -f $PBS_O_WORKDIR/${seq}/unique/${seq}.indels.AMB.vcf ] && rm $PBS_O_WORKDIR/${seq}/unique/${seq}.indels.AMB*
-
 sleep 20
 exit 0
