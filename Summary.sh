@@ -2,21 +2,20 @@
 
 
 ##This script is run as part of the SPANDx pipeline as of version 3.1
-PBS_O_WORKDIR=$1
-ref=$2
-SAMTOOLS=$3
+PBS_O_WORKDIR="$1"
+ref="$2"
+SAMTOOLS="$3"
 
 ##input sample names
 cd $PBS_O_WORKDIR
-sequences_tmp=(`find $PBS_O_WORKDIR/*_1_sequence.fastq.gz -printf "%f "`)
+sequences_tmp=(`find ${PBS_O_WORKDIR}/*_1_sequence.fastq.gz -printf "%f "`)
 sequences=("${sequences_tmp[@]/_1_sequence.fastq.gz/}")
 n=${#sequences[@]}
 TAB="$(printf '\t')"
 
 cat << _EOF_ > SNP_summary_header
-
-Reference=$ref
-Total number of genomes analysed=$n
+Reference="${ref}"
+Total number of genomes analysed="${n}"
 Genome Name${TAB}Number of SNPs passing filters${TAB}Number of SNPs Failing filters${TAB}Number of indels passing filters${TAB}Number of indels failing filters${TAB}Average coverage${TAB}Mapped reads
 _EOF_
 

@@ -24,6 +24,8 @@ sub error
         "Options:\n",
         "   -h, -?, --help                   This help message.\n",
         "   -i, --iupac                      Use one-letter IUPAC codes\n",
+        "Notes:\n",
+        "   Please use `bcftools query` instead, this script will not be supported in future.\n",
         "\n";
 }
 
@@ -101,6 +103,7 @@ sub convert_to_tab
             my $gt = $al1.'/'.$al2;
             if ( $iupac )
             {
+                $gt = $al1.$al2;
                 if ( !exists($$iupac{$gt}) ) { error(qq[Unknown IUPAC code for "$al1$sep$al2" .. $$x{CHROM}:$$x{POS} $col\n]); }
                 $gt = $$iupac{$gt};
             }
