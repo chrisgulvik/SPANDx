@@ -108,8 +108,8 @@ fi
 #########################################################################
 if [ "${tech}" == Illumina -o "${tech}" == Illumina_old ]; then
 	if [ "${tech}" == Illumina -a "${pairing}" == PE ]; then
-		if [ ! -s "${SAI1}" -a ! -s "${GATK_REALIGNED_BAM}" ]; then
-			log_eval ${PBS_O_WORKDIR} "${BWA} aln ${REF_FILE} ${READ1_FILE} -t ${CPUs} -f ${SAI1} && ${BWA} aln ${REF_FILE} ${READ2_FILE} -t ${CPUs} -f ${SAI2}"
+		if [ ! -s "${GATK_REALIGNED_BAM}" ]; then
+			log_eval ${PBS_O_WORKDIR} "${BWA} mem -t ${CPUs} -R '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' ${REF_FILE} ${READ1_FILE} ${READ2_FILE} > ${SAM}"
 		fi
 	fi
 	if [ "${tech}" == Illumina -a "${pairing}" == SE ]; then
@@ -129,18 +129,20 @@ if [ "${tech}" == Illumina -o "${tech}" == Illumina_old ]; then
 	fi
 	if [ "${pairing}" == PE ]; then
 		if [ ! -s "${BAM_UNIQUE_FILE}.bam" -a ! -s "${GATK_REALIGNED_BAM}" ]; then
-			log_eval ${PBS_O_WORKDIR} "${BWA} sampe -r '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' ${REF_FILE} ${SAI1} ${SAI2} ${READ1_FILE} ${READ2_FILE} > ${SAM}"
+			#removed for new BWA
+			#log_eval ${PBS_O_WORKDIR} "${BWA} sampe -r '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' ${REF_FILE} ${SAI1} ${SAI2} ${READ1_FILE} ${READ2_FILE} > ${SAM}"
 			log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} view -@ ${CPUs} -h -b -S -q 1 ${SAM} | ${SAMTOOLS} sort -@ ${CPUs} - ${BAM_UNIQUE_FILE}"
 		fi
 	fi
 	if [ "${pairing}" == SE ]; then 
 		if [ ! -s "${BAM_UNIQUE_FILE}.bam" -a ! -s "${GATK_REALIGNED_BAM}" ]; then
-			log_eval ${PBS_O_WORKDIR} "${BWA} samse -r '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' ${REF_FILE} ${SAI1} ${READ1_FILE} > ${SAM}"
+			#removed for new BWA
+			#log_eval ${PBS_O_WORKDIR} "${BWA} samse -r '@RG\tID:${org}\tSM:${seq}\tPL:ILLUMINA' ${REF_FILE} ${SAI1} ${READ1_FILE} > ${SAM}"
 			log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} view -@ ${CPUs} -h -b -S -q 1 ${SAM} | ${SAMTOOLS} sort -@ ${CPUs} - ${BAM_UNIQUE_FILE}"
 		fi
 	fi	
 	if [ ! -s "${BAM_UNIQUE_INDEX_FILE}" -a ! -s "${GATK_REALIGNED_BAM}" ]; then
-		log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} index ${BAM_UNIQUE_FILE}"
+		log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} index -@ ${CPUs} ${BAM_UNIQUE_FILE}"
 	fi
 fi
 
@@ -168,7 +170,7 @@ if [ ! -s "${UNMAPPED}.bam" -a -s "${SAM}" ]; then
 	log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} view -@ ${CPUs} -h -b -S -f 4 -F 264 ${SAM} > ${TMP_BAM1}"
 	log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} view -@ ${CPUs} -h -b -S -f 8 -F 260 ${SAM} > ${TMP_BAM2}"
 	log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} view -@ ${CPUs} -h -b -S -f 12 -F 256 ${SAM} > ${TMP_BAM3}"
-	log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} merge -u - ${TMP_BAM1} ${TMP_BAM2} ${TMP_BAM3} | ${SAMTOOLS} sort -@ ${CPUs} -n - ${UNMAPPED}"
+	log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} merge -@ ${CPUs} -u - ${TMP_BAM1} ${TMP_BAM2} ${TMP_BAM3} | ${SAMTOOLS} sort -@ ${CPUs} -n - ${UNMAPPED}"
 fi
 ### cleanup ###
 if [ -s "${SAM}" -a -s "${UNMAPPED}.bam" ]; then
@@ -181,7 +183,7 @@ if [ "${REMOVE_DUPS}" -eq 1 ]; then
 		log_eval ${PBS_O_WORKDIR} "${JAVA} ${SET_VAR} ${MARKDUPLICATES} I=${BAM_UNIQUE_FILE}.bam O=${BAM_DUPLICATESREM_FILE} REMOVE_DUPLICATES=true METRICS_FILE=${DUP_METRICS} VALIDATION_STRINGENCY=LENIENT"
 	fi
 	if [ ! -s "${BAM_DUPLICATESREM_FILE_INDEX}" -a ! -s "${GATK_REALIGNED_BAM}" ]; then
-		log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} index ${BAM_DUPLICATESREM_FILE}"
+		log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} index -@ ${CPUs} ${BAM_DUPLICATESREM_FILE}"
 	fi
 fi
 if [ "${REMOVE_DUPS}" -eq 0 ]; then
@@ -189,7 +191,7 @@ if [ "${REMOVE_DUPS}" -eq 0 ]; then
 		log_eval ${PBS_O_WORKDIR} "cp ${BAM_UNIQUE_FILE}.bam ${BAM_DUPLICATESREM_FILE}"
 	fi
 	if [ ! -s "${BAM_DUPLICATESREM_FILE_INDEX}" -a ! -s "${GATK_REALIGNED_BAM}" ]; then
-		log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} index ${BAM_DUPLICATESREM_FILE}"
+		log_eval ${PBS_O_WORKDIR} "${SAMTOOLS} index -@ ${CPUs} ${BAM_DUPLICATESREM_FILE}"
 	fi
 fi
 
