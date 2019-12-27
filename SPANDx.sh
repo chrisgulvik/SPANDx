@@ -35,12 +35,25 @@
 #################################################################
 usage()
 {
-echo -e  "USAGE: SPANDx.sh <parameters, required> -r <reference, without .fasta extension> [parameters, optional] -o [organism] -m [generate SNP matrix yes/no] -i [generate indel matrix yes/no] -a [include annotation yes/no] -v [Variant genome file. Name must match the SnpEff database] -s [Specify read prefix to run single strain or none to just construct SNP matrix] -t [Sequencing technology used Illumina/Illumina_old/454/PGM] -p [Pairing of reads PE/SE] -w [BEDTools window size in base pairs] -z [include tri-allelic and tetra-allelic SNPs yes/no]"
+echo -e  "Thanks for using SPANDx v3.2
+Usage:
+   SPANDx.sh -r <reference, without .fasta extension>
+Optional Parameter:
+  -o       Organism
+  -m       Generate SNP matrix (yes/no)
+  -i       Generate indel matrix (yes/no)
+  -a       Include annotation (yes/no)
+  -v       Variant genome file. Name must match the SnpEff database
+  -s       Specify read prefix to run single strain or none to just construct SNP matrix
+  -t       Sequencing technology used Illumina/Illumina_old/454/PGM
+  -p       Pairing of reads (PE/SE)
+  -w       BEDTools window size in base pairs
+  -z       Include tri-allelic and tetra-allelic SNPs (yes/no)\n"
 }
 help()
 {
 usage
-cat << _EOF_ 
+cat << _EOF_
 
 Thanks for using SPANDx!!
 
@@ -297,7 +310,9 @@ fi
 ### Handling and checks for read files
 if [ "${strain}" == all ]; then
 	sequences_tmp=(`find ${PBS_O_WORKDIR}/*_1_sequence.fastq.gz -printf "%f "`)
-	sequences=("${sequences_tmp[@]/_1_sequence.fastq.gz/}")
+	sequences_rename=("${sequences_tmp[@]/_1_sequence.fastq.gz/}")
+	IFS=$'\n' sequences=($(sort <<<"${sequences_rename[*]}"))
+	unset IFS
 	n=${#sequences[@]}
 	if [ $n == 0 ]; then
 		echo -e "Program couldn't find any sequence files to process"
@@ -312,7 +327,9 @@ fi
 ## check for read pairing and correct notation #need to test
 if [ "${pairing}" == PE -a "${strain}" == all ]; then
 	sequences_tmp2=(`find ${PBS_O_WORKDIR}/*_2_sequence.fastq.gz -printf "%f "`)
-	sequences2=("${sequences_tmp2[@]/_2_sequence.fastq.gz/}")
+	sequences2_rename=("${sequences_tmp2[@]/_2_sequence.fastq.gz/}")
+	IFS=$'\n' sequences2=($(sort <<<"${sequences2_rename[*]}"))
+	unset IFS
 	n2=${#sequences2[@]}
 	if [ ${n} != ${n2} ]; then
 		echo "Number of forward reads don't match number of reverse reads. Please check that for running in PE mode all read files have correctly named pairs"
